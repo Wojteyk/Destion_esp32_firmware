@@ -9,10 +9,12 @@
 #include "cstring"
 #include "json.hpp"
 #include "esp_https_server.h"
+#include "dns_server.h"
 
 #define MAX_RETRY_NUM 5
 static const char* TAG = "main";
-// Prosta strona HTML z formularzem do wpisania danych Wi-Fi
+
+
 const char* html_form = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -58,7 +60,6 @@ static esp_err_t connect_get_handler(httpd_req_t *req) {
 
     ESP_LOGI(TAG, "Otrzymano SSID: %s, Haslo: %s", ssid, password);
 
-    // Skonfiguruj i połącz z Wi-Fi
     wifi_config_t wifi_config = {};
     strcpy((char*)wifi_config.sta.ssid, ssid);
     strcpy((char*)wifi_config.sta.password, password);
@@ -67,20 +68,16 @@ static esp_err_t connect_get_handler(httpd_req_t *req) {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_connect());
 
-    // Odpowiedz przeglądarce, że próbujemy się połączyć
     httpd_resp_send(req, "<h1>Probuje polaczyc...</h1><p>Restart urzadzenia po sukcesie.</p>", HTTPD_RESP_USE_STRLEN);
 
-    // Tutaj można dodać logikę do zatrzymania serwera WWW po udanym połączeniu
-    // W naszym przypadku event handler Wi-Fi może zrestartować urządzenie
-    
     return ESP_OK;
 }
 
-// Funkcja uruchamiająca serwer WWW
+
 static httpd_handle_t start_webserver(void) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.uri_match_fn = httpd_uri_match_wildcard; // Umożliwia dopasowanie wzorców
+    config.uri_match_fn = httpd_uri_match_wildcard; 
 
     if (httpd_start(&server, &config) == ESP_OK) {
         httpd_uri_t root_uri = {
@@ -102,31 +99,33 @@ static httpd_handle_t start_webserver(void) {
 
 
 
-static void wifi_prov_handler(void *user_data, wifi_prov_cb_event_t event, void *event_data)
-{
-    switch(event)
-    {
-        case WIFI_PROV_START :
-        ESP_LOGI(TAG,"[WIFI_PROV_START]");
-        break;
-        case WIFI_PROV_CRED_RECV :
-        ESP_LOGI(TAG ,"cred : ssid : %s pass : %s",((wifi_sta_config_t*)event_data)->ssid,((wifi_sta_config_t*)event_data)->password);
-        break;
-        case WIFI_PROV_CRED_SUCCESS :
-        ESP_LOGI(TAG,"prov success");
-        wifi_prov_mgr_stop_provisioning();
-        break;
-        case WIFI_PROV_CRED_FAIL :
-        ESP_LOGE(TAG,"credentials worng");
-        wifi_prov_mgr_reset_sm_state_on_failure();
-        break;
-        case WIFI_PROV_END: 
-        ESP_LOGI(TAG,"prov ended");
-        wifi_prov_mgr_deinit();
-        break;
-        default : break;
-    }
-}
+// static void wifi_prov_handler(void *user_data, wifi_prov_cb_event_t event, void *event_data)
+// {
+//     switch(event)
+//     {
+//         case WIFI_PROV_START :
+//         ESP_LOGI(TAG,"[WIFI_PROV_START]");
+//         break;
+//         case WIFI_PROV_CRED_RECV :
+//         ESP_LOGI(TAG ,"cred : ssid : %s pass : %s",((wifi_sta_config_t*)event_data)->ssid,((wifi_sta_config_t*)event_data)->password);
+//         break;
+//         case WIFI_PROV_CRED_SUCCESS :
+//         ESP_LOGI(TAG,"prov success");
+//         wifi_prov_mgr_stop_provisioning();
+//         break;
+//         case WIFI_PROV_CRED_FAIL :
+//         ESP_LOGE(TAG,"credentials worng");
+//         wifi_prov_mgr_reset_sm_state_on_failure();
+//         break;
+//         case WIFI_PROV_END: 
+//         ESP_LOGI(TAG,"prov ended");
+//         wifi_prov_mgr_deinit();
+//         break;
+//         default : break;
+//     }
+// }
+
+
 static void wifi_event_handler(void* event_handler_arg,
                                         esp_event_base_t event_base,
                                         int32_t event_id,
@@ -180,7 +179,7 @@ void wifi_hw_init(void)
 static void prov_start(void) {
     bool is_provisioned = false;
     
-    // Sprawdź, czy dane są już w NVS
+    // Check if wifi config is already saved
     wifi_config_t saved_config;
     if (esp_wifi_get_config(WIFI_IF_STA, &saved_config) == ESP_OK && strlen((const char*)saved_config.sta.ssid) > 0) {
         is_provisioned = true;
@@ -189,18 +188,18 @@ static void prov_start(void) {
     if (is_provisioned) {
         ESP_LOGI(TAG, "Urządzenie juz skonfigurowane. Laczenie z '%s'", saved_config.sta.ssid);
         esp_wifi_set_mode(WIFI_MODE_STA);
-        esp_wifi_start(); // Rozpoczyna proces łączenia, który obsłuży event handler
+        // Ensure DNS server is stopped when in STA mode
+        dns_server_stop();
+        esp_wifi_start(); // Rconnect to normal wifi
     } else {
         ESP_LOGI(TAG, "Urządzenie nie skonfigurowane. Uruchamiam tryb AP i serwer WWW.");
         
-        // Ustaw tryb AP (Access Point)
         esp_wifi_set_mode(WIFI_MODE_AP);
         
-        // Skonfiguruj sieć AP
         wifi_config_t ap_config = {
             .ap = {
                 .ssid = "ESP32_SETUP",
-                .password = "1", // Bez hasła dla ułatwienia
+                .password = "", 
                 .ssid_len = strlen("ESP32_SETUP"),
                 .authmode = WIFI_AUTH_OPEN,
                 .max_connection = 1
@@ -208,45 +207,18 @@ static void prov_start(void) {
         };
         esp_wifi_set_config(WIFI_IF_AP, &ap_config);
         
-        // Uruchom Wi-Fi w trybie AP
         esp_wifi_start();
+
+         //xTaskCreate(dns_task, "dns_task", 4096, NULL, 5, &dns_task_handle); //moze tu nie wiem bo nic nie dziala 
+        // Start the captive-portal DNS responder so connected clients are
+        // redirected to the softAP IP (192.168.4.1)
+        dns_server_start();
         
-        // Uruchom serwer WWW
         start_webserver();
         ESP_LOGI(TAG, "Serwer WWW uruchomiony. Polacz sie z siecia 'ESP32_SETUP' i wejdz na 192.168.4.1");
     }
 }
 
-
-
-// static void prov_start(void)
-// {
-//     wifi_prov_mgr_config_t cfg = 
-//     {
-//         .scheme =wifi_prov_scheme_softap,
-//         .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE,
-//         .app_event_handler = wifi_prov_handler,
-        
-      
-//     };
-//     wifi_prov_mgr_init(cfg);
-//     bool is_provisioned = 0;
-//     wifi_prov_mgr_is_provisioned(&is_provisioned);
-//     wifi_prov_mgr_disable_auto_stop(100);
-//     if(is_provisioned)
-//     {
-//         ESP_LOGI(TAG,"Already provisioned");
-//         esp_wifi_set_mode(WIFI_MODE_STA);
-//         esp_wifi_start();
-//     }
-//     else
-//     {
-//         wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1,"abcd1234","PROV_ESP",NULL);
-//         //print_qr();
-
-//     }
-
-// }
 extern "C" void app_main(void)
 {
 
@@ -260,10 +232,10 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     // // DODAJ TEN FRAGMENT, ABY ZAWSZE CZYŚCIĆ PAMIĘĆ NA POTRZEBY TESTÓW
-    // ESP_LOGW(TAG, "!!! FORCING NVS ERASE TO TEST PROVISIONING !!!");
-    // ESP_ERROR_CHECK(nvs_flash_erase()); // Bezwarunkowe czyszczenie
-    // ESP_ERROR_CHECK(nvs_flash_init()); 
-    // ESP_ERROR_CHECK(ret);
+    ESP_LOGW(TAG, "!!! FORCING NVS ERASE TO TEST PROVISIONING !!!");
+    ESP_ERROR_CHECK(nvs_flash_erase()); // Bezwarunkowe czyszczenie
+    ESP_ERROR_CHECK(nvs_flash_init()); 
+    ESP_ERROR_CHECK(ret);
 
     wifi_hw_init();
     prov_start();
