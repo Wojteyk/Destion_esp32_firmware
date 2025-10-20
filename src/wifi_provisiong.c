@@ -9,6 +9,7 @@
 #include "esp_event.h"
 #include "dns_server.h"
 #include "esp_http_server.h"
+#include "provisionig_html.h"
 
 static const char* TAG = "wifi_prov";
 
@@ -28,8 +29,7 @@ static esp_err_t redirect_to_root(httpd_req_t *req);
 static httpd_handle_t start_webserver(void) {
     httpd_handle_t server = NULL;
      httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-     config.max_req_hdr_len = 2048; 
-     config.scratch_size_limit = config.max_req_hdr_len;
+         config.max_req_hdr_len = 2048; 
     config.uri_match_fn = httpd_uri_match_wildcard; 
 
     if (httpd_start(&server, &config) == ESP_OK) {
@@ -162,23 +162,6 @@ void wifi_provisioning_start(void) {
         ESP_LOGI(TAG, "Captive portal started at 192.168.4.1");
     }
 }
-
-// --- captive portal webserver (moved into provisioning module) ---
-const char* html_form = ""
-"<!DOCTYPE html>"
-"<html>"
-"<head><title>ESP32 Wi-Fi Setup</title></head>"
-"<body>"
-"  <h1>Skonfiguruj Wi-Fi</h1>"
-"  <form action=\"/connect\" method=\"get\">"
-"    SSID (Nazwa sieci):<br>" 
-"    <input type=\"text\" name=\"ssid\"><br>" 
-"    Haslo:<br>" 
-"    <input type=\"password\" name=\"password\"><br><br>" 
-"    <input type=\"submit\" value=\"Polacz\">" 
-"  </form>" 
-"</body>" 
-"</html>";
 
 static esp_err_t root_get_handler(httpd_req_t *req) {
     httpd_resp_send(req, html_form, HTTPD_RESP_USE_STRLEN);
