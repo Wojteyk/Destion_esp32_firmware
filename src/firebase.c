@@ -1,19 +1,26 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include <string.h>
+#include "esp_crt_bundle.h"
+
+#include "firebase.h"
 
 static const char *TAG = "firebase_client";
+extern esp_err_t firebase_put(const char *path, const char *json_payload);
 
-const char *FIREBASE_BASE_URL = "https://console.firebase.google.com/u/0/project/espbackendapp/database/espbackendapp-default-rtdb/data/~2F";
+const char *FIREBASE_BASE_URL = "https://espbackendapp-default-rtdb.europe-west1.firebasedatabase.app/";
 
-esp_err_t firebase_put(const char *project_db_url, const char *path, const char *json_payload)
+esp_err_t firebase_put(const char *path, const char *json_payload)
 {
     char url[256];
     snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path); 
+
     esp_http_client_config_t config = {
         .url = url,
-        .method = HTTP_METHOD_PUT,
+        .method = HTTP_METHOD_PUT,     
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
+
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_post_field(client, json_payload, strlen(json_payload));
@@ -27,7 +34,7 @@ esp_err_t firebase_put(const char *project_db_url, const char *path, const char 
     return err;
 }
 
-esp_err_t firebase_get(const char *project_db_url, const char *path, char *out_buf, size_t out_len)
+esp_err_t firebase_get( const char *path, char *out_buf, size_t out_len)
 {
     char url[256];
     snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path);

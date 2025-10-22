@@ -14,6 +14,8 @@
 static const char* TAG = "wifi_prov";
 
 #define MAX_RETRY_NUM 5
+static const char* AP_SSID = "ESP32_Setup";
+static const char* AP_PASS = "";
 
 
 static httpd_handle_t start_webserver(void);
@@ -21,6 +23,7 @@ static void wifi_event_handler(void* event_handler_arg,
                                         esp_event_base_t event_base,
                                         int32_t event_id,
                                         void* event_data);
+
 static esp_err_t root_get_handler(httpd_req_t *req);
 static esp_err_t connect_get_handler(httpd_req_t *req);
 static esp_err_t wildcard_get_handler(httpd_req_t *req);
@@ -98,7 +101,25 @@ static void wifi_event_handler(void* event_handler_arg,
                 {
                     esp_wifi_connect();
                 }
-                else ESP_LOGE(TAG,"Connection error");
+                else 
+                {
+                     ESP_LOGE(TAG,"Connection error, starting AP");
+                     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+                     wifi_config_t empty = {0};
+                     esp_wifi_set_config(WIFI_IF_STA, &empty);
+
+                     wifi_config_t ap_config = { 0 };
+                    strncpy((char*)ap_config.ap.ssid, AP_SSID, sizeof(ap_config.ap.ssid)-1);
+                    ap_config.ap.ssid_len = strlen(AP_SSID);
+                    strncpy((char*)ap_config.ap.password, AP_PASS, sizeof(ap_config.ap.password)-1);
+                    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+                    ap_config.ap.max_connection = 1;
+
+                     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+                     ESP_ERROR_CHECK(esp_wifi_start());
+                     dns_server_start();
+                     start_webserver();
+                }
                 break;
             default : break;
         }
@@ -144,15 +165,12 @@ void wifi_provisioning_start(void) {
         ESP_LOGI(TAG, "Device not provisioned. Starting SoftAP and captive portal");
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
 
-        wifi_config_t ap_config = {
-            .ap = {
-                .ssid = "ESP32_SETUP",
-                .password = "",
-                .ssid_len = strlen("ESP32_SETUP"),
-                .authmode = WIFI_AUTH_OPEN,
-                .max_connection = 1
-            }
-        };
+        wifi_config_t ap_config = { 0 };
+        strncpy((char*)ap_config.ap.ssid, AP_SSID, sizeof(ap_config.ap.ssid)-1);
+        ap_config.ap.ssid_len = strlen(AP_SSID);
+        strncpy((char*)ap_config.ap.password, AP_PASS, sizeof(ap_config.ap.password)-1);
+        ap_config.ap.authmode = WIFI_AUTH_OPEN;
+        ap_config.ap.max_connection = 1;
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
         ESP_ERROR_CHECK(esp_wifi_start());
 
