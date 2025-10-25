@@ -1,15 +1,17 @@
-#include "esp_http_client.h"
 #include "esp_log.h"
 #include <string.h>
 #include "esp_crt_bundle.h"
 
 #include "firebase.h"
 
+typedef esp_http_client_handle_t firebase_stream_handle_t;
 #define MAX_RETRY_NUM 5
 #define RETRY_DELAY_MS 500
 static const char *TAG = "firebase_client";
 
 const char *FIREBASE_BASE_URL = "https://espbackendapp-default-rtdb.europe-west1.firebasedatabase.app/";
+
+extern void set_relay_state(const char *json_payload);
 
 static esp_err_t _firebase_put_htpp(const char *path, const char *json_payload)
 {
@@ -86,24 +88,119 @@ esp_err_t firebase_put_string_impl(const char *path, const char* value){
     return _firebase_put_htpp(path, value);
 }
 
-esp_err_t firebase_get( const char *path, char *out_buf, size_t out_len)
-{
+// esp_err_t firebase_get( const char *path, char *out_buf, size_t out_len)
+// {
+//     char url[256];
+//     snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path);
+//     esp_http_client_config_t config = {
+//         .url = url,
+//         .method = HTTP_METHOD_GET,
+//     };
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
+//     esp_err_t err = esp_http_client_perform(client);
+//     if (err == ESP_OK) {
+//         int status = esp_http_client_get_status_code(client);
+//         int len = esp_http_client_read_response(client, out_buf, out_len - 1);
+//         if (len > 0) out_buf[len] = '\0';
+//         ESP_LOGI(TAG, "GET status=%d len=%d", status, len);
+//     } else {
+//         ESP_LOGE(TAG, "GET failed: %s", esp_err_to_name(err));
+//     }
+//     esp_http_client_cleanup(client);
+//     return err;
+// }
+
+firebase_stream_handle_t firebase_start_stream(const char* path){
     char url[256];
+
     snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path);
+
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_GET,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .timeout_ms = 60000,
     };
+
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        int status = esp_http_client_get_status_code(client);
-        int len = esp_http_client_read_response(client, out_buf, out_len - 1);
-        if (len > 0) out_buf[len] = '\0';
-        ESP_LOGI(TAG, "GET status=%d len=%d", status, len);
-    } else {
-        ESP_LOGE(TAG, "GET failed: %s", esp_err_to_name(err));
+    if(client == NULL){
+        ESP_LOGE(TAG, "Filed to initilize http client for stream");
+        return NULL;
     }
-    esp_http_client_cleanup(client);
-    return err;
+
+    esp_http_client_set_header(client, "Accept", "text/event-stream");
+
+    esp_err_t err = esp_http_client_open(client, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Stream connection failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return NULL;
+    }
+
+    int headers_len = esp_http_client_fetch_headers(client);
+    if (headers_len < 0 || esp_http_client_get_status_code(client) != 200) {
+        ESP_LOGE(TAG, "Stream header fetch failed or bad status: %d", esp_http_client_get_status_code(client));
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return NULL;
+    }
+
+    ESP_LOGI(TAG, "Firebase stream established successfully.");
+    return client;
+     
 }
+
+void firebase_switch_stream_task(void *pvParameters){
+    (void) pvParameters;
+
+    firebase_stream_handle_t stream_handle = NULL;
+    const char *path = "CONTROLS/pc_switch";
+
+    char stream_buffer[256] = {0}; 
+    int current_pos = 0;
+
+    while (true) {
+        if (stream_handle == NULL) {
+            ESP_LOGW(TAG, "Attempting to start Firebase stream...");
+            stream_handle = firebase_start_stream(path);
+            if (stream_handle == NULL) {
+                vTaskDelay(pdMS_TO_TICKS(10000));
+                continue;
+            }
+        }
+
+        int read_len = esp_http_client_read(stream_handle, stream_buffer + current_pos,1 );
+
+        if(read_len > 0){
+            if (stream_buffer[current_pos] == '\n') {
+                stream_buffer[current_pos] = '\0';
+                
+                if (strstr(stream_buffer, "data:") != NULL) {
+                    char *data_ptr = strchr(stream_buffer, '{');
+                    if (data_ptr != NULL) {
+                         set_relay_state(data_ptr);
+                    }
+                }
+                current_pos = 0; 
+                memset(stream_buffer, 0, sizeof(stream_buffer));
+            } else if (current_pos < sizeof(stream_buffer) - 1) {
+                current_pos++;
+            } else {
+                ESP_LOGE(TAG, "Stream buffer overflow, resetting.");
+                current_pos = 0;
+            }
+
+            } else if (read_len == 0) {
+            ESP_LOGW(TAG, "Stream closed by server, reconnecting...");
+            esp_http_client_close(stream_handle);
+            esp_http_client_cleanup(stream_handle);
+            stream_handle = NULL;
+        } else { 
+            ESP_LOGE(TAG, "Stream read error: %s", esp_err_to_name((esp_err_t)read_len));
+            esp_http_client_close(stream_handle);
+            esp_http_client_cleanup(stream_handle);
+            stream_handle = NULL;
+        }
+    }
+}
+ 

@@ -15,8 +15,34 @@
 
 static const char* TAG = "main";
 dht11_t dht11;
+#define RELAY_GPIO_PIN 19 
+#define RELAY_ON       1 
+#define RELAY_OFF      0
 
-void dht11_fireabse_task(void){
+extern void set_relay_state(const char *json_payload);
+
+void set_relay_state(const char *json_payload) {
+    if (json_payload == NULL) return;
+
+    if (strstr(json_payload, "true") != NULL) {
+        gpio_set_level(RELAY_GPIO_PIN, RELAY_ON);
+        ESP_LOGI("RELAY", "RELAY SET HIGH.");
+    } 
+    else if (strstr(json_payload, "false") != NULL ) {
+        gpio_set_level(RELAY_GPIO_PIN, RELAY_OFF);
+        ESP_LOGI("RELAY", "RELAY SET LOW.");
+    } else {
+        ESP_LOGE("RELAY", "Received unrecognised payload: %s", json_payload);
+    }
+}
+
+void relay_init(void) {
+    gpio_reset_pin(RELAY_GPIO_PIN);
+    gpio_set_direction(RELAY_GPIO_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(RELAY_GPIO_PIN, RELAY_OFF);
+}
+
+void fireabse_dht11_task(void *pvParameters){
 
     while (true)
     {
@@ -37,17 +63,29 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    relay_init();
     dht11.dht11_pin = 5;
 
-    // Initialize WiFi stack and start provisioning/captive portal if needed
+   
     wifi_provisioning_start();
 
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM)); // making it more energy efficient
+
     xTaskCreate(
-        dht11_fireabse_task,
+        fireabse_dht11_task,
         "DHT11_Firebase",
         4096,
         NULL,
         5,
+        NULL
+    );
+
+    xTaskCreate(
+        firebase_switch_stream_task, 
+        "FirebaseStream", 
+        8192, 
+        NULL, 
+        7,     
         NULL
     );
 

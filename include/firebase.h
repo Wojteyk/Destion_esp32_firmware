@@ -1,4 +1,5 @@
 #include "esp_err.h"
+#include "esp_http_client.h"
 
 #pragma once
 
@@ -8,7 +9,7 @@
  * * Provides generic functions for sending (PUT) and receiving (GET) data
  * to a Firebase Realtime Database endpoint using the ESP HTTP Client.
  */
-
+void firebase_switch_stream_task(void *pvParameters);
 // --------------------------------------------------------------------------
 // --- PUT Implementation Functions (Hidden behind generic macro) ----------
 // --------------------------------------------------------------------------

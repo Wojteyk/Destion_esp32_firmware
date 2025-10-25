@@ -13,6 +13,7 @@
 
 static const char* TAG = "wifi_prov";
 
+#define MAX_LISTEN_INTERVAL 10
 #define MAX_RETRY_NUM 5
 static const char* AP_SSID = "ESP32_Setup";
 static const char* AP_PASS = "";
@@ -158,6 +159,7 @@ void wifi_provisioning_start(void) {
 
     if (is_provisioned) {
         ESP_LOGI(TAG, "Device already provisioned. Connecting to '%s'", saved_config.sta.ssid);
+        saved_config.sta.listen_interval = MAX_LISTEN_INTERVAL;
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         dns_server_stop();
         ESP_ERROR_CHECK(esp_wifi_start());
