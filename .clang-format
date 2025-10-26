@@ -1,0 +1,17 @@
+---
+BasedOnStyle: GNU
+IndentWidth: 4       # 4 spacje wcięcia, typowe w embedded
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman  # klamry w nowej linii, bardziej czytelne dla embedded
+AllowShortFunctionsOnASingleLine: false
+ColumnLimit: 100            # maksymalna długość linii
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+SpacesBeforeTrailingComments: 1
+SpaceBeforeParens: ControlStatements  # spacja przed nawiasem w if/for/while
+Cpp11BracedListStyle: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReflowComments: true
+...
