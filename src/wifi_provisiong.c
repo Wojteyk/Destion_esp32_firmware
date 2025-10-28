@@ -21,7 +21,8 @@ static const char* TAG = "wifi_prov";
 #define MAX_RETRY_NUM 5
 static const char* AP_SSID = "ESP32_Setup";
 static const char* AP_PASS = "";
-bool tasks_started = false;
+static bool tasks_started = false;
+static bool PREVIOUSLY_CONNECTED = false;
 
 // Forward declarations
 static httpd_handle_t start_webserver(void);
@@ -98,7 +99,7 @@ wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGE(TAG, "ESP32 Disconnected, retrying");
             retry_cnt++;
-            if (retry_cnt < MAX_RETRY_NUM)
+            if (retry_cnt < MAX_RETRY_NUM || PREVIOUSLY_CONNECTED)
             {
                 esp_wifi_connect();
             }
@@ -132,7 +133,7 @@ wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t
         {
             ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
             ESP_LOGI(TAG, "station ip :" IPSTR, IP2STR(&event->ip_info.ip));
-
+            PREVIOUSLY_CONNECTED = true;
             if (!tasks_started)
             {
                 start_application_tasks();
