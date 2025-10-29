@@ -104,10 +104,8 @@ button_handler_task(void* pvParameters)
 
             ESP_LOGI("BUTTON_TASK", "Button on GPIO %d pressed! Time: %llums", io_num,
                      current_time);
-
-            // Toggle relay state and send to Firebase
-            relay_state = !relay_state;
-            firebase_put("CONTROLS/pc_switch", relay_state);
+            
+            firebase_put("CONTROLS/pc_switch", (bool)!relay_state);
 
             last_interrupt_time = current_time;
         }
