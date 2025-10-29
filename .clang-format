@@ -1,17 +1,69 @@
 ---
-BasedOnStyle: GNU
-IndentWidth: 4       # 4 spacje wcięcia, typowe w embedded
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Ogólne zasady formatowania
+IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-BreakBeforeBraces: Allman  # klamry w nowej linii, bardziej czytelne dla embedded
-AllowShortFunctionsOnASingleLine: false
-ColumnLimit: 100            # maksymalna długość linii
+ContinuationIndentWidth: 8
+ColumnLimit: 100
+
+# Nawiasy i bloki
+BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-SpacesBeforeTrailingComments: 1
-SpaceBeforeParens: ControlStatements  # spacja przed nawiasem w if/for/while
-Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: InlineOnly
+
+# Spacje
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+
+# Wyrównania i łamanie linii
+AlignAfterOpenBracket: Align
+AlignOperands: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
+AlignTrailingComments: true
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: Yes
+
+# Importy / include
+IncludeBlocks: Regroup
+SortIncludes: true
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  - Regex: '^"esp_.*"'
+    Priority: 2
+  - Regex: '^".*"'
+    Priority: 3
+  - Regex: ".*"
+    Priority: 4
+
+# Komentarze i puste linie
+KeepEmptyLinesAtTheStartOfBlocks: false
 ReflowComments: true
-...
+CommentPragmas: "^ NOLINT"
+
+# Parametry i deklaracje
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: true
+
+# Preprocesor
+IndentPPDirectives: AfterHash
+
+# C-specyficzne
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+# Dodatkowe
+Cpp11BracedListStyle: true
+BreakConstructorInitializers: BeforeComma
