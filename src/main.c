@@ -2,10 +2,14 @@
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 #include <stdio.h>
+#include <string.h>
+#include "driver/uart.h"
 
 #include "dht11.h"
 #include "hardware.h"
 #include "wifi_provisioning.h"
+#include "uart_connection.h"
+
 
 static const char* TAG = "main";
 
@@ -24,8 +28,10 @@ app_main(void)
     pc_switch_init();
     relay_init();
     dht11_init();
-
+    uart_init();
     wifi_provisioning_start();
 
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM)); // making it more energy efficient
+
+    xTaskCreate(dht_uart_task, "dht_uart_task", 4096, NULL, 5, NULL);
 }

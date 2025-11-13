@@ -81,4 +81,6 @@ void firebase_dht11_task(void* pvParameters);
  */
 void dht11_init(void);
 
+extern dht11_t dht11;
+
 #endif //_DHT_11

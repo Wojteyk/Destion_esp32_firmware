@@ -9,7 +9,7 @@
 #define RELAY_IMPULSE_TIME_MS 500
 
 #define DEBOUNCE_TIME_MS 3000
-#define BUTTON_GPIO_PIN 17
+#define BUTTON_GPIO_PIN 18
 
 static QueueHandle_t gpio_evt_queue = NULL;
 static bool relay_state = RELAY_OFF;
