@@ -45,3 +45,5 @@ void send_dht_data(float temperature, float humidity);
  * @param pvParameters FreeRTOS task parameters (unused, can be NULL).
  */
 void dht_uart_task(void *pvParameters);
+
+void uart_pc_receive_task(void *pvParameters);
