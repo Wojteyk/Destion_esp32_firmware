@@ -8,17 +8,25 @@
  * @brief UART module for sending DHT11 sensor data.
  */
 
-/**
- * @brief Initialize UART peripheral for communication with STM32.
- * 
- * Configures UART with parameters:
+ /**
+ * @brief Initialize the UART peripheral for communication.
+ *
+ * This function configures and installs the UART driver for the ESP32. It sets
+ * up the UART parameters such as baud rate, data bits, parity, stop bits, and
+ * flow control. Additionally, it installs the UART driver and configures the
+ * TX and RX pins. A FreeRTOS queue is created to handle UART events in an
+ * interrupt-driven manner.
+ *
+ * ## Configuration Details:
+ * - UART port: UART_NUM_1
+ * - TX pin: 17
+ * - RX pin: 16
  * - Baud rate: 115200
  * - Data bits: 8
  * - Parity: None
  * - Stop bits: 1
- * - Flow control: None
- * 
- * Sets TX to GPIO17 and RX to GPIO16 (changeable).
+ * - Flow control: Disabled
+ * - Event queue length: 20
  */
 void uart_init();
 
@@ -46,4 +54,16 @@ void send_dht_data(float temperature, float humidity);
  */
 void dht_uart_task(void *pvParameters);
 
-void uart_pc_receive_task(void *pvParameters);
+/**
+ * @brief UART event handling task.
+ *
+ * This task waits for UART events sent from the UART ISR (Interrupt Service Routine)
+ * via a FreeRTOS queue. It handles incoming data, FIFO overflows, and buffer-full
+ * conditions. When data is received, the function reads the bytes from the UART buffer
+ * and performs appropriate actions based on the received command (e.g., "PC:On" or "PC:Off").
+ *
+ * @param[in] pvParameters Not used. Required by FreeRTOS task function signature.
+ */
+void uart_event_task(void *pvParameters);
+
+void uart_pc_callback(bool state);

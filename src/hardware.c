@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "firebase.h"
+#include "uart_connection.h"
 
 #define RELAY_GPIO_PIN 22
 #define RELAY_ON 1
@@ -12,7 +13,7 @@
 #define BUTTON_GPIO_PIN 18
 
 static QueueHandle_t gpio_evt_queue = NULL;
-static bool relay_state = RELAY_OFF;
+bool relay_state = RELAY_OFF;
 
 // Interrupt service routine for button press
 static void IRAM_ATTR
@@ -45,6 +46,7 @@ set_relay_state(const char* json_payload)
             gpio_set_level(RELAY_GPIO_PIN, RELAY_OFF);
         }
         relay_state = RELAY_ON;
+        uart_pc_callback(true);
         ESP_LOGI("RELAY", "RELAY SET HIGH.");
     }
     else if (strstr(json_payload, "false") != NULL)
@@ -56,6 +58,7 @@ set_relay_state(const char* json_payload)
             gpio_set_level(RELAY_GPIO_PIN, RELAY_OFF);
         }
         relay_state = RELAY_OFF;
+        uart_pc_callback(false);
         ESP_LOGI("RELAY", "RELAY SET LOW.");
     }
     else

@@ -6,12 +6,13 @@
 
 #include "uart_connection.h"
 #include "firebase.h"
+#include "hardware.h"
 
 #define UART_PORT UART_NUM_1
 #define UART_TX_PIN 17
 #define UART_RX_PIN 16
 #define UART_BAUD 115200
-#define BUFF_SIZE 128
+#define BUFF_SIZE 256
 
 typedef enum {
     PC_CMD_OFF = 0,
@@ -31,39 +32,65 @@ void uart_init(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
 
-    uart_driver_install(UART_PORT, BUFF_SIZE * 2, 0, 0, NULL, 0);
+    uart_driver_install(UART_PORT, BUFF_SIZE * 2, 0, 20, &uart_evt_queue, 0);
     uart_param_config(UART_PORT, &uart_config);
     uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-    uart_evt_queue = xQueueCreate(10, sizeof(pc_command_t));
 
     ESP_LOGI(TAG, "UART initialized on TX=%d RX=%d", UART_TX_PIN, UART_RX_PIN);
 }
 
-void uart_pc_receive_task(void *pvParameters)
+void uart_event_task(void *pvParameters)
 {
     uint8_t buf[BUFF_SIZE];
-    pc_command_t cmd;
+     uart_event_t event;
 
-    for(;;)
+    while (1)
     {
-        int len = uart_read_bytes(UART_PORT, buf, sizeof(buf) - 1, pdMS_TO_TICKS(100));
-        if(len > 0)
+        // CZEKA NA ZDARZENIE OD PRZERWANIA
+        if (xQueueReceive(uart_evt_queue, &event, portMAX_DELAY))
         {
-            buf[len] = '\0';
+            switch (event.type)
+            {
+                case UART_DATA:
+                {
+                    int len = uart_read_bytes(UART_PORT, buf, event.size, portMAX_DELAY);
+                    if (len > 0) {
+                        buf[len] = '\0';
 
-            if(strstr((char *)buf, "PC:On")) {
-                cmd = PC_CMD_ON;
-            } else if(strstr((char *)buf, "PC:Off")) {
-                cmd = PC_CMD_OFF;
-            } else {
-                continue; 
+                        if (strstr((char*)buf, "PC:On")) {
+                            firebase_put("CONTROLS/pc_switch", (bool)true);
+                        } 
+                        else if (strstr((char*)buf, "PC:Off")) {
+                            firebase_put("CONTROLS/pc_switch", (bool)false);
+                        }
+                        else if (strstr((char*)buf, "PC:?")) {
+                            uart_pc_callback(relay_state);
+                        }
+                    }
+                }
+                break;
+
+                case UART_FIFO_OVF:
+                    ESP_LOGW(TAG, "UART FIFO overflow");
+                    uart_flush_input(UART_PORT);
+                    xQueueReset(uart_evt_queue);
+                break;
+
+                case UART_BUFFER_FULL:
+                    ESP_LOGW(TAG, "UART RX buffer full");
+                    uart_flush_input(UART_PORT);
+                    xQueueReset(uart_evt_queue);
+                break;
+                
+                case UART_BREAK:
+                    ESP_LOGW(TAG, "UART break detected (device disconnected?)");
+                break;
+
+                default:
+                    ESP_LOGW(TAG, "Unhandled UART event: %d", event.type);
+                break;
             }
-
-            firebase_put("CONTROLS/pc_switch", (bool)cmd);
         }
-
-        vTaskDelay(pdMS_TO_TICKS(10)); 
     }
 }
 
@@ -92,5 +119,14 @@ void dht_uart_task(void *pvParameters)
             ESP_LOGW(TAG, "DHT11 read error status = %d", status);
         }
         vTaskDelay(pdMS_TO_TICKS(300000)); // 5 minutes
+    }
+}
+
+void uart_pc_callback(bool state){
+    char buffer[BUFF_SIZE];
+    int len = snprintf(buffer, sizeof(buffer), "PC:%d\n", state);
+    if(len > 0){
+        uart_write_bytes(UART_PORT, buffer, len);
+        ESP_LOGI(TAG, "Sent: %s", buffer);
     }
 }

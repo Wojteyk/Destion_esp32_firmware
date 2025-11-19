@@ -4,6 +4,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
+extern bool relay_state;
+
 /**
  * @brief Sets the relay state based on a JSON payload.
  *
