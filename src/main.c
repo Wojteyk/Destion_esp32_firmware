@@ -5,7 +5,7 @@
 #include <string.h>
 #include "driver/uart.h"
 
-#include "dht11.h"
+#include "sht40.h"
 #include "hardware.h"
 #include "wifi_provisioning.h"
 #include "uart_connection.h"
@@ -26,12 +26,12 @@ app_main(void)
 
     pc_switch_init();
     relay_init();
-    dht11_init();
+    sht40_init();
     uart_init();
     wifi_provisioning_start();
 
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM)); // making it more energy efficient
 
-    xTaskCreate(dht_uart_task, "dht_uart_task", 4096, NULL, 7, NULL);
+    xTaskCreate(sht40_uart_task, "sht40_uart_task", 4096, NULL, 7, NULL);
      xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 5, NULL);
 }

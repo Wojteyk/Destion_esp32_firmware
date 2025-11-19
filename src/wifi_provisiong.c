@@ -9,7 +9,7 @@
 #include "freertos/task.h"
 #include <string.h>
 
-#include "dht11.h"
+#include "sht40.h"
 #include "firebase.h"
 #include "hardware.h"
 #include "provisionig_html.h"
@@ -38,7 +38,7 @@ static esp_err_t redirect_to_root(httpd_req_t* req);
 static void
 start_application_tasks()
 {
-    xTaskCreate(firebase_dht11_task, "DHT11_Firebase", 8192, NULL, 5, NULL);
+    xTaskCreate(sht40_firebase_task, "sht40_firebase_task", 8192, NULL, 5, NULL);
 
     xTaskCreate(firebase_switch_stream_task, "FirebaseStream", 8192, NULL, 7, NULL);
 

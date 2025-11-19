@@ -94,7 +94,7 @@ void uart_event_task(void *pvParameters)
     }
 }
 
-void send_dht_data(float temperature, float humidity)
+void uart_sendSensorsData(float temperature, float humidity)
 {
     char buffer[BUFF_SIZE];
     int len = snprintf(buffer, sizeof(buffer), "T:%.2f;H:%.2f\n", temperature, humidity);
@@ -103,22 +103,6 @@ void send_dht_data(float temperature, float humidity)
     {
         uart_write_bytes(UART_PORT, buffer, len);
         ESP_LOGI(TAG, "Sent: %s", buffer);
-    }
-}
-
-void dht_uart_task(void *pvParameters)
-{
-    while(1)
-    {
-        int status = dht11_read(&dht11, 5);
-        if(status == 0){
-            send_dht_data(dht11.temperature, dht11.humidity);
-        }
-        else
-        {
-            ESP_LOGW(TAG, "DHT11 read error status = %d", status);
-        }
-        vTaskDelay(pdMS_TO_TICKS(300000)); // 5 minutes
     }
 }
 

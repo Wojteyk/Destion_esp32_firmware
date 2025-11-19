@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dht11.h"
+#include "sht40.h"
 #include "driver/uart.h"
 
 /**
@@ -31,7 +31,7 @@
 void uart_init();
 
 /**
- * @brief Send DHT11 temperature and humidity data over UART.
+ * @brief Send SHT40 temperature and humidity data over UART.
  * 
  * @param temperature The temperature value in Celsius.
  * @param humidity The humidity value in percentage.
@@ -39,20 +39,7 @@ void uart_init();
  * Sends a string in the format "T:<temperature>;H:<humidity>\n", 
  * e.g. "T:23.45;H:55.67\n".
  */
-void send_dht_data(float temperature, float humidity);
-
-/**
- * @brief FreeRTOS task that reads DHT11 sensor and sends data via UART.
- * 
- * This task repeatedly:
- * 1. Reads temperature and humidity from DHT11 using `dht11_read()`.
- * 2. If read is successful, sends data using `send_dht_data()`.
- * 3. Logs a warning if the read fails.
- * 4. Waits 5 min before next read.
- * 
- * @param pvParameters FreeRTOS task parameters (unused, can be NULL).
- */
-void dht_uart_task(void *pvParameters);
+void uart_sendSensorsData(float temperature, float humidity);
 
 /**
  * @brief UART event handling task.
@@ -66,4 +53,10 @@ void dht_uart_task(void *pvParameters);
  */
 void uart_event_task(void *pvParameters);
 
+/**
+ * @brief Callback function to report PC state via UART.
+ * * Formats the provided boolean state into a protocol string (e.g., "PC:1\n" or "PC:0\n")
+ * and transmits it over the configured UART interface.
+ * * @param state The current status of the PC (true for ON/Active, false for OFF/Inactive).
+ */
 void uart_pc_callback(bool state);
