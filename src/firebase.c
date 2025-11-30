@@ -44,6 +44,7 @@ static esp_err_t _firebase_put_http(const char *path, const char *json_payload)
             if (status_code >= 200 && status_code < 300)
             {
                 ESP_LOGI(TAG, "PUT success, status=%d", status_code);
+                ESP_LOGI(TAG, "Payload (JSON): %s", json_payload);
                 err = ESP_OK;
             }
             else

@@ -12,15 +12,68 @@
 #define DEBOUNCE_TIME_MS 3000
 #define BUTTON_GPIO_PIN 18
 
+#define WINDOW_GPIO_PIN 2
+#define WINDOW_OPEN 1
+#define WINDOW_CLOSE 0
+
+static QueueHandle_t window_evt_queue = NULL;
 static QueueHandle_t gpio_evt_queue = NULL;
 bool relay_state = RELAY_OFF;
+bool window_state = WINDOW_CLOSE;
 
 // Interrupt service routine for button press
-static void IRAM_ATTR
-button_isr_handler(void* arg)
+static void IRAM_ATTR button_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t)arg;
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
+
+static void IRAM_ATTR window_isr_handler(void* arg)
+{
+    uint32_t gpio_num = (uint32_t)arg;
+    xQueueSendFromISR(window_evt_queue, &gpio_num, NULL);
+}
+
+void window_init()
+{
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_ANYEDGE, 
+        .mode = GPIO_MODE_INPUT,
+        .pin_bit_mask = (1ULL << WINDOW_GPIO_PIN),
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    gpio_config(&io_conf);
+
+    window_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(WINDOW_GPIO_PIN, window_isr_handler, (void*)WINDOW_GPIO_PIN);
+}
+
+void window_task(void* pvParameters)
+{
+    uint32_t io_num;
+
+    for(;;)
+    {
+        if(xQueueReceive(window_evt_queue, &io_num, portMAX_DELAY))
+        {
+            int state = gpio_get_level(WINDOW_GPIO_PIN);
+            if(state == 1 && state != window_state)
+            {   
+                window_state = state;
+                ESP_LOGI("WINDOW_TAKS", "Window closed");
+                firebase_put("CONTROLS/window", (bool)!state);
+            }
+            else if(state == 0 && state != window_state)
+            {
+                window_state = state;
+                ESP_LOGI("WINDOW_TAKS", "Window opend");
+                firebase_put("CONTROLS/window", (bool)!state);
+            }
+        }
+    }
 }
 
 void

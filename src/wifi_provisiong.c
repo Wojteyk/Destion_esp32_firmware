@@ -43,6 +43,8 @@ start_application_tasks()
     xTaskCreate(firebase_switch_stream_task, "FirebaseStream", 8192, NULL, 7, NULL);
 
     xTaskCreate(button_handler_task, "ButtonHandler", 4096, NULL, 10, NULL);
+
+    xTaskCreate(window_task, "WindowHandler", 4096, NULL, 10, NULL);
 }
 
 // Start the web server (captive portal)

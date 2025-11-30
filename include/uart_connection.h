@@ -2,6 +2,7 @@
 
 #include "sht40.h"
 #include "driver/uart.h"
+#include <time.h>
 
 /**
  * @file uart_connection.h
@@ -60,3 +61,6 @@ void uart_event_task(void *pvParameters);
  * * @param state The current status of the PC (true for ON/Active, false for OFF/Inactive).
  */
 void uart_pc_callback(bool state);
+
+
+void uart_sendTime(struct tm *timeinfo);

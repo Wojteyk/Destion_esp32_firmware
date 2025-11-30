@@ -9,6 +9,7 @@
 #include "hardware.h"
 #include "wifi_provisioning.h"
 #include "uart_connection.h"
+#include "time_sync.h"
 
 static const char* TAG = "main";
 
@@ -25,13 +26,16 @@ app_main(void)
     ESP_ERROR_CHECK(ret);
 
     pc_switch_init();
+    window_init();
     relay_init();
     sht40_init();
     uart_init();
     wifi_provisioning_start();
 
+    time_init_sync();
+
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM)); // making it more energy efficient
 
     xTaskCreate(sht40_uart_task, "sht40_uart_task", 4096, NULL, 7, NULL);
-     xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 5, NULL);
+    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 5, NULL);
 }

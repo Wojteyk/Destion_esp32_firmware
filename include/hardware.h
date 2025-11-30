@@ -42,3 +42,27 @@ void pc_switch_init(void);
  * @param pvParameters Task parameters (unused)
  */
 void button_handler_task(void* pvParameters);
+
+/**
+ * @brief FreeRTOS task responsible for processing window sensor events.
+ *
+ * The task waits for GPIO interrupt events sent through window_evt_queue.
+ * On each event, it reads the current window state, compares it with the previous one
+ * and triggers an action when a change is detected.
+ *
+ * It logs window open/close events and publishes updates to Firebase.
+ *
+ * @param pvParameters Unused task parameter.
+ */
+void window_task(void* pvParameters);
+
+/**
+ * @brief Initialize the window sensor GPIO and interrupt handling.
+ *
+ * Configures the window sensor pin as an input with edge-triggered interrupts.
+ * Creates a queue for passing GPIO events to the window task.
+ * Installs the ISR service and attaches the interrupt handler to the pin.
+ *
+ * This function must be called before creating the window_task().
+ */
+void window_init();

@@ -7,6 +7,7 @@
 #include "uart_connection.h"
 #include "firebase.h"
 #include "hardware.h"
+#include "time_sync.h"
 
 #define UART_PORT UART_NUM_1
 #define UART_TX_PIN 17
@@ -46,7 +47,6 @@ void uart_event_task(void *pvParameters)
 
     while (1)
     {
-        // CZEKA NA ZDARZENIE OD PRZERWANIA
         if (xQueueReceive(uart_evt_queue, &event, portMAX_DELAY))
         {
             switch (event.type)
@@ -65,6 +65,13 @@ void uart_event_task(void *pvParameters)
                         }
                         else if (strstr((char*)buf, "PC:?")) {
                             uart_pc_callback(relay_state);
+                        }
+                        else if (strstr((char*)buf, "TIME:?")) {
+                            time_getTime();
+                        }
+                        else
+                        {
+                            ESP_LOGW(TAG, "Nieznana komenda: '%s'", buf);
                         }
                     }
                 }
@@ -110,6 +117,17 @@ void uart_pc_callback(bool state){
     char buffer[BUFF_SIZE];
     int len = snprintf(buffer, sizeof(buffer), "PC:%d\n", state);
     if(len > 0){
+        uart_write_bytes(UART_PORT, buffer, len);
+        ESP_LOGI(TAG, "Sent: %s", buffer);
+    }
+}
+
+void uart_sendTime(struct tm *timeinfo)
+{
+    char buffer[BUFF_SIZE];
+    int len = strftime(buffer, sizeof(buffer), "H%H:M%M:S%S\n", timeinfo);
+    if(len >  0)
+    {
         uart_write_bytes(UART_PORT, buffer, len);
         ESP_LOGI(TAG, "Sent: %s", buffer);
     }
