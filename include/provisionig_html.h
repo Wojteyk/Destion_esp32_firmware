@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 const char html_form[] = R"rawliteral(<!DOCTYPE html>
 <html>

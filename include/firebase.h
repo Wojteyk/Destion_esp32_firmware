@@ -1,14 +1,36 @@
-#include "esp_err.h"
-
 #pragma once
 
-/**
- * @file firebase.h
- * @brief Header file for the Firebase Realtime Database client library for ESP-IDF.
- * * Provides generic functions for sending (PUT) and receiving (GET) data
- * to a Firebase Realtime Database endpoint using the ESP HTTP Client.
- */
+#include "esp_err.h"
+#include "esp_http_client.h"
 
+/**
+ * @brief Callback function type definition for handling incoming stream data.
+ * * This function is called whenever new data is received from the monitored Firebase path.
+ * * @param json_payload A string containing the data received. This may be a raw value
+ * (e.g., "true", "123") or a JSON object string, depending on the database content.
+ */
+typedef void (*firebase_data_callback_t)(const char *json_payload);
+
+/**
+ * @brief Configuration structure for initializing a Firebase stream task.
+ * * This structure holds the necessary parameters to set up a specific stream listener.
+ * * @param path The relative path in the Realtime Database to monitor (e.g., "controls/light").
+ * @param on_data The callback function to execute when data at the specified path changes.
+ */
+typedef struct {
+    const char *path;             
+    firebase_data_callback_t on_data; 
+} firebase_stream_config_t;
+
+/**
+ * @brief FreeRTOS task function that manages a generic Firebase stream connection.
+ * * This function runs in an infinite loop, maintaining a persistent HTTP connection 
+ * (Server-Sent Events) to Firebase. It automatically handles reconnection logic and 
+ * parses incoming data streams to invoke the user-defined callback.
+ * * @param pvParameters A pointer to a `firebase_stream_config_t` structure containing 
+ * the path and callback configuration.
+ */
+void firebase_generic_stream_task(void *pvParameters);
 // --------------------------------------------------------------------------
 // --- PUT Implementation Functions (Hidden behind generic macro) ----------
 // --------------------------------------------------------------------------
@@ -17,34 +39,38 @@
  * @brief Writes a single floating-point value to the Realtime Database.
  * * @param path The relative path in the database (e.g., "devices/temp").
  * @param value The float value to be written. This is sent as a raw number payload.
- * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code otherwise.
+ * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code
+ * otherwise.
  */
-esp_err_t firebase_put_float_impl(const char *path, float value);
+esp_err_t firebase_put_float_impl(const char* path, float value);
 
 /**
  * @brief Writes a single integer value to the Realtime Database.
  * * @param path The relative path in the database (e.g., "devices/counter").
  * @param value The integer value to be written. This is sent as a raw number payload.
- * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code otherwise.
+ * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code
+ * otherwise.
  */
-esp_err_t firebase_put_int_impl(const char *path, int value);
+esp_err_t firebase_put_int_impl(const char* path, int value);
 
 /**
  * @brief Writes a single boolean value to the Realtime Database.
  * * @param path The relative path in the database (e.g., "devices/status").
  * @param value The boolean value ('true' or 'false') to be written. Sent as JSON boolean literal.
- * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code otherwise.
+ * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code
+ * otherwise.
  */
-esp_err_t firebase_put_bool_impl(const char *path, bool value);
+esp_err_t firebase_put_bool_impl(const char* path, bool value);
 
 /**
  * @brief Writes a single string value to the Realtime Database.
  * * @param path The relative path in the database (e.g., "devices/message").
- * @param value The string value to be written. This is automatically enclosed in quotes (e.g., "Hello").
- * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code otherwise.
+ * @param value The string value to be written. This is automatically enclosed in quotes (e.g.,
+ * "Hello").
+ * @return esp_err_t Returns ESP_OK on successful HTTP transaction (status 2xx), or an error code
+ * otherwise.
  */
-esp_err_t firebase_put_string_impl(const char *path, const char* value);
-
+esp_err_t firebase_put_string_impl(const char* path, const char* value);
 
 // --------------------------------------------------------------------------
 // --- GENERIC PUT MACRO ----------------------------------------------------
@@ -58,14 +84,13 @@ esp_err_t firebase_put_string_impl(const char *path, const char* value);
  * @param value The value to be sent (float, int, bool, or char*).
  * @return esp_err_t Returns ESP_OK on success.
  */
-#define firebase_put(path, value) _Generic((value),     \
-    float: firebase_put_float_impl,                     \
-    int: firebase_put_int_impl,                         \
-    bool: firebase_put_bool_impl,                       \
-    const char *: firebase_put_string_impl,             \
-    char *: firebase_put_string_impl                    \
-)(path, value)
-
+#define firebase_put(path, value)                                                                  \
+    _Generic((value),                                                                              \
+        float: firebase_put_float_impl,                                                            \
+        int: firebase_put_int_impl,                                                                \
+        bool: firebase_put_bool_impl,                                                              \
+        const char*: firebase_put_string_impl,                                                     \
+        char*: firebase_put_string_impl)(path, value)
 
 // --------------------------------------------------------------------------
 // --- GET FUNCTION ---------------------------------------------------------
@@ -73,12 +98,13 @@ esp_err_t firebase_put_string_impl(const char *path, const char* value);
 
 /**
  * @brief Reads the JSON data from the Realtime Database at a given path.
- * * The data received from Firebase is typically raw JSON and is stored 
+ * * The data received from Firebase is typically raw JSON and is stored
  * in the output buffer.
  *
  * @param path The relative path in the database (e.g., "config/settings").
  * @param out_buf Pointer to the buffer where the received data will be stored.
  * @param out_len The size of the output buffer (out_buf).
- * @return esp_err_t Returns ESP_OK on successful HTTP transaction and data read, or an error code otherwise.
+ * @return esp_err_t Returns ESP_OK on successful HTTP transaction and data read, or an error code
+ * otherwise.
  */
-esp_err_t firebase_get( const char *path, char *out_buf, size_t out_len);
+esp_err_t firebase_get(const char* path, char* out_buf, size_t out_len);
