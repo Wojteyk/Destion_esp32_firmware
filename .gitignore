@@ -4,3 +4,8 @@
 .vscode/launch.json
 .vscode/ipch
 .vscode/
+
+# Sensitive configuration
+config.h
+.env
+.env.local
