@@ -6,21 +6,25 @@
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
 
+// Include configuration
+#include "../include/config.h"
+
 typedef esp_http_client_handle_t firebase_stream_handle_t;
 #define MAX_RETRY_NUM  5
 #define RETRY_DELAY_MS 500
 static const char *TAG = "firebase_client";
 
-const char *FIREBASE_BASE_URL =
-        "https://espbackendapp-default-rtdb.europe-west1.firebasedatabase.app/";
+// Firebase configuration from config.h (macros are used directly below)
+// No separate variable declarations needed - use macros directly in code
 
 // Internal helper to perform HTTP PUT with retries
 static esp_err_t _firebase_put_http(const char *path, const char *json_payload)
 {
     int       retry_cnt = 0;
-    char      url[256];
+    char      url[512];
     esp_err_t err = ESP_FAIL;
-    snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path);
+    // Add authentication token to URL
+    snprintf(url, sizeof(url), "%s/%s.json?auth=%s", FIREBASE_BASE_URL, path, FIREBASE_SECRET);
 
     do
     {
@@ -103,8 +107,9 @@ esp_err_t firebase_put_string_impl(const char *path, const char *value)
 
 firebase_stream_handle_t firebase_start_stream(const char *path)
 {
-    char url[256];
-    snprintf(url, sizeof(url), "%s/%s.json", FIREBASE_BASE_URL, path);
+    char url[512];
+    // Add authentication token to stream URL
+    snprintf(url, sizeof(url), "%s/%s.json?auth=%s", FIREBASE_BASE_URL, path, FIREBASE_SECRET);
 
     esp_http_client_config_t config = {
             .url               = url,
