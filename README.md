@@ -4,7 +4,7 @@
 
 **ESP32 WiFi Configuration** is the IoT connectivity layer of an intelligent home automation system. Built on the **Espressif ESP32** microcontroller, this module provides WiFi provisioning, cloud integration via Firebase Realtime Database, and intelligent IoT protocol handling.
 
-This project acts as the **cloud bridge** that synchronizes with the [**Destion STM32F411 Control System**](../destion/README.md), creating a complete connected ecosystem for remote monitoring and control.
+This project acts as the **cloud bridge** that synchronizes with the [**Destion STM32F411 Control System**](https://github.com/Wojteyk/Destion), creating a complete connected ecosystem for remote monitoring and control.
 
 ## Key Features
 
