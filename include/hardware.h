@@ -7,6 +7,15 @@
 extern bool relay_state;
 
 /**
+ * @brief Callback function to control the light state based on received Firebase data.
+ * * This function parses the incoming JSON payload (supporting "true"/"1" for ON and "false"/"0" for OFF)
+ * and triggers the corresponding UART command to the connected MCU.
+ * * @note "null" payloads (keep-alive messages) are safely ignored to prevent errors.
+ * * @param json_payload The raw string data received from the Firebase stream.
+ */
+void set_light_state(const char* json_payload);
+
+/**
  * @brief Sets the relay state based on a JSON payload.
  *
  * This function parses the given JSON payload to determine
@@ -14,7 +23,7 @@ extern bool relay_state;
  * the GPIO output accordingly.
  *
  * @param json_payload A JSON-formatted string containing the relay state information.
- *                     Example: {"relay": "on"}
+ *             
  */
 void set_relay_state(const char* json_payload);
 

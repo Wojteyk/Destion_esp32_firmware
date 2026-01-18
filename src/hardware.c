@@ -87,7 +87,7 @@ relay_init(void)
 void
 set_relay_state(const char* json_payload)
 {
-    if (json_payload == NULL)
+    if (json_payload == NULL || strstr(json_payload, "null") != NULL)
         return;
 
     if (strstr(json_payload, "true") != NULL)
@@ -113,6 +113,28 @@ set_relay_state(const char* json_payload)
         relay_state = RELAY_OFF;
         uart_pc_callback(false);
         ESP_LOGI("RELAY", "RELAY SET LOW.");
+    }
+    else
+    {
+        ESP_LOGE("RELAY", "Received unrecognized payload: %s", json_payload);
+    }
+}
+
+void
+set_light_state(const char* json_payload)
+{
+    if (json_payload == NULL || strstr(json_payload, "null") != NULL)
+        return;
+
+    if (strstr(json_payload, "true") != NULL)
+    {
+        uart_sendLightState(true);
+        ESP_LOGI("Light", "light turn on");
+    }
+    else if (strstr(json_payload, "false") != NULL)
+    {
+        uart_sendLightState(false);
+        ESP_LOGI("Light", "light turn off");
     }
     else
     {

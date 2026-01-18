@@ -64,3 +64,5 @@ void uart_pc_callback(bool state);
 
 
 void uart_sendTime(struct tm *timeinfo);
+
+void uart_sendLightState(bool state);

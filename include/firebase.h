@@ -4,12 +4,33 @@
 #include "esp_http_client.h"
 
 /**
- * @file firebase.h
- * @brief Header file for the Firebase Realtime Database client library for ESP-IDF.
- * * Provides generic functions for sending (PUT) and receiving (GET) data
- * to a Firebase Realtime Database endpoint using the ESP HTTP Client.
+ * @brief Callback function type definition for handling incoming stream data.
+ * * This function is called whenever new data is received from the monitored Firebase path.
+ * * @param json_payload A string containing the data received. This may be a raw value
+ * (e.g., "true", "123") or a JSON object string, depending on the database content.
  */
-void firebase_switch_stream_task(void* pvParameters);
+typedef void (*firebase_data_callback_t)(const char *json_payload);
+
+/**
+ * @brief Configuration structure for initializing a Firebase stream task.
+ * * This structure holds the necessary parameters to set up a specific stream listener.
+ * * @param path The relative path in the Realtime Database to monitor (e.g., "controls/light").
+ * @param on_data The callback function to execute when data at the specified path changes.
+ */
+typedef struct {
+    const char *path;             
+    firebase_data_callback_t on_data; 
+} firebase_stream_config_t;
+
+/**
+ * @brief FreeRTOS task function that manages a generic Firebase stream connection.
+ * * This function runs in an infinite loop, maintaining a persistent HTTP connection 
+ * (Server-Sent Events) to Firebase. It automatically handles reconnection logic and 
+ * parses incoming data streams to invoke the user-defined callback.
+ * * @param pvParameters A pointer to a `firebase_stream_config_t` structure containing 
+ * the path and callback configuration.
+ */
+void firebase_generic_stream_task(void *pvParameters);
 // --------------------------------------------------------------------------
 // --- PUT Implementation Functions (Hidden behind generic macro) ----------
 // --------------------------------------------------------------------------

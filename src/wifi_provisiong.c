@@ -34,13 +34,25 @@ static esp_err_t connect_get_handler(httpd_req_t* req);
 static esp_err_t wildcard_get_handler(httpd_req_t* req);
 static esp_err_t redirect_to_root(httpd_req_t* req);
 
+static firebase_stream_config_t switch_config = {
+    .path = "CONTROLS/pc_switch",
+    .on_data = set_relay_state
+};
+
+static firebase_stream_config_t light_config = {
+    .path = "CONTROLS/light",
+    .on_data = set_light_state 
+};
+
 // Start application tasks (Firebase + DHT11 + button)
 static void
 start_application_tasks()
 {
     xTaskCreate(sht40_firebase_task, "sht40_firebase_task", 8192, NULL, 5, NULL);
 
-    xTaskCreate(firebase_switch_stream_task, "FirebaseStream", 8192, NULL, 7, NULL);
+    xTaskCreate(firebase_generic_stream_task, "stream_switch", 4096, &switch_config, 7, NULL);
+
+    xTaskCreate(firebase_generic_stream_task, "stream_light", 4096, &light_config, 7, NULL);
 
     xTaskCreate(button_handler_task, "ButtonHandler", 4096, NULL, 10, NULL);
 

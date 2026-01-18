@@ -14,8 +14,6 @@ static const char *TAG = "firebase_client";
 const char *FIREBASE_BASE_URL =
         "https://espbackendapp-default-rtdb.europe-west1.firebasedatabase.app/";
 
-extern void set_relay_state(const char *json_payload);
-
 // Internal helper to perform HTTP PUT with retries
 static esp_err_t _firebase_put_http(const char *path, const char *json_payload)
 {
@@ -147,43 +145,57 @@ firebase_stream_handle_t firebase_start_stream(const char *path)
     return client;
 }
 
-void firebase_switch_stream_task(void *pvParameters)
+
+void firebase_generic_stream_task(void *pvParameters) 
 {
-    (void) pvParameters;
+    firebase_stream_config_t *config = (firebase_stream_config_t*) pvParameters;
+
+    if(config == NULL)
+    {
+        ESP_LOGE(TAG, "Stream task started without config!");
+        vTaskDelete(NULL);
+    }
+
+    ESP_LOGI(TAG, "Starting stream for path: %s", config->path);
 
     firebase_stream_handle_t stream_handle = NULL;
-    const char              *path          = "CONTROLS/pc_switch";
-
     char stream_buffer[256] = {0};
-    int  current_pos        = 0;
+    int current_pos = 0;
 
-    while (true)
+    while(true)
     {
-        if (stream_handle == NULL)
+        if(stream_handle == NULL)
         {
-            ESP_LOGW(TAG, "Attempting to start Firebase stream...");
-            stream_handle = firebase_start_stream(path);
+            ESP_LOGW(TAG, "[%s] Connecting stream...", config->path);
+            stream_handle = firebase_start_stream(config->path);
+            
             if (stream_handle == NULL)
             {
-                vTaskDelay(pdMS_TO_TICKS(5000)); // Retry after 5s if failed
+                vTaskDelay(pdMS_TO_TICKS(5000));
                 continue;   
             }
         }
 
         int read_len = esp_http_client_read(stream_handle, stream_buffer + current_pos, 1);
 
-        if (read_len > 0)
+        if(read_len > 0)
         {
-            if (stream_buffer[current_pos] == '\n')
+            if(stream_buffer[current_pos] == '\n')
             {
                 stream_buffer[current_pos] = '\0';
 
-                if (strstr(stream_buffer, "data:") != NULL)
+                if(strstr(stream_buffer, "data:") != NULL)
                 {
                     char *data_ptr = strchr(stream_buffer, '{');
-                    if (data_ptr != NULL)
+
+                    if (data_ptr == NULL) 
                     {
-                        set_relay_state(data_ptr);
+                        data_ptr = strstr(stream_buffer, "data: ") + 6;
+                    }
+
+                    if (data_ptr != NULL && config->on_data != NULL)
+                    {
+                        config->on_data(data_ptr);
                     }
                 }
                 current_pos = 0;
@@ -195,20 +207,20 @@ void firebase_switch_stream_task(void *pvParameters)
             }
             else
             {
-                ESP_LOGE(TAG, "Stream buffer overflow, resetting.");
+                ESP_LOGE(TAG, "[%s] Buffer overflow", config->path);
                 current_pos = 0;
             }
         }
         else if (read_len == 0)
         {
-            ESP_LOGW(TAG, "Stream closed by server, reconnecting...");
+            ESP_LOGW(TAG, "[%s] Stream closed by server", config->path);
             esp_http_client_close(stream_handle);
             esp_http_client_cleanup(stream_handle);
             stream_handle = NULL;
         }
         else
         {
-            ESP_LOGE(TAG, "Stream read error: %s", esp_err_to_name((esp_err_t) read_len));
+            ESP_LOGE(TAG, "[%s] Read error", config->path);
             esp_http_client_close(stream_handle);
             esp_http_client_cleanup(stream_handle);
             stream_handle = NULL;

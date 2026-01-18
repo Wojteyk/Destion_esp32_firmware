@@ -69,6 +69,12 @@ void uart_event_task(void *pvParameters)
                         else if (strstr((char*)buf, "TIME:?")) {
                             time_getTime();
                         }
+                        if (strstr((char*)buf, "L:On")) {
+                            firebase_put("CONTROLS/light", (bool)true);
+                        }
+                        if (strstr((char*)buf, "L:Off")) {
+                            firebase_put("CONTROLS/light", (bool)false);
+                        }  
                         else
                         {
                             ESP_LOGW(TAG, "Nieznana komenda: '%s'", buf);
@@ -128,6 +134,15 @@ void uart_sendTime(struct tm *timeinfo)
     int len = strftime(buffer, sizeof(buffer), "H%H:M%M:S%S\n", timeinfo);
     if(len >  0)
     {
+        uart_write_bytes(UART_PORT, buffer, len);
+        ESP_LOGI(TAG, "Sent: %s", buffer);
+    }
+}
+
+void uart_sendLightState(bool state){
+    char buffer[BUFF_SIZE];
+    int len = snprintf(buffer, sizeof(buffer), "L:%d\n", state);
+    if(len > 0){
         uart_write_bytes(UART_PORT, buffer, len);
         ESP_LOGI(TAG, "Sent: %s", buffer);
     }
